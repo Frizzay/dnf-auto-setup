@@ -1,5 +1,5 @@
 ---
-- name: Setup dnf automatic with Discord notifications
+- name: Set up dnf automatic with Discord notifications
   hosts: all
   become: true
 
@@ -23,8 +23,24 @@
       default: n
       private: false
 
+    - name: dnf_auto_time
+      prompt: "Time of the daily run (HH:MM)"
+      default: "03:00"
+      private: false
+
+    - name: dnf_auto_random_delay
+      prompt: "Random delay in minutes (0 = none)"
+      default: "0"
+      private: false
+
+    - name: dnf_auto_catch_up
+      prompt: "Catch up on missed runs after boot? (y/n)"
+      default: n
+      private: false
+
   vars:
     dnf_auto_emit_no_updates_enabled: "{{ (dnf_auto_emit_no_updates | lower) in ['y', 'yes'] }}"
+    dnf_auto_catch_up_enabled: "{{ (dnf_auto_catch_up | lower) in ['y', 'yes'] }}"
     dnf_auto_timer: dnf5-automatic.timer
     discord_notify_script: /usr/local/bin/dnf-discord-notify
     discord_webhook_file: /etc/dnf/discord-webhook
@@ -39,9 +55,13 @@
           - dnf_auto_upgrade_type in ['security', 'default']
           - dnf_auto_reboot in ['never', 'when-needed', 'when-changed']
           - (dnf_auto_emit_no_updates | lower) in ['y', 'yes', 'n', 'no']
+          - "dnf_auto_time is match('^([01]?[0-9]|2[0-3]):[0-5][0-9]$')"
+          - "dnf_auto_random_delay is match('^[0-9]+$')"
+          - (dnf_auto_catch_up | lower) in ['y', 'yes', 'n', 'no']
         fail_msg: >-
           Invalid input or not Fedora 41+. Expected a Discord webhook URL,
-          security/default, never/when-needed/when-changed and y/n.
+          security/default, never/when-needed/when-changed, y/n,
+          a time such as 03:00, a number for the delay and y/n.
         quiet: true
 
     - name: Check whether the dnf5 Python bindings are installed
@@ -80,6 +100,7 @@
         mode: "0755"
         content: |
           #!/bin/bash
+          # Managed by Ansible
           # Sends the dnf automatic report (read from stdin) to Discord
           set -euo pipefail
           WEBHOOK_URL="$(cat {{ discord_webhook_file }})"
@@ -100,6 +121,7 @@
         group: root
         mode: "0644"
         content: |
+          # Managed by Ansible
           [commands]
           upgrade_type = {{ dnf_auto_upgrade_type }}
           apply_updates = yes
@@ -112,14 +134,46 @@
           [command]
           command_format = {{ discord_notify_script }}
 
+    - name: Create the drop-in directory for the timer
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ dnf_auto_timer }}.d"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Set the timer's schedule and catch-up behaviour
+      ansible.builtin.copy:
+        dest: "/etc/systemd/system/{{ dnf_auto_timer }}.d/schedule.conf"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by Ansible
+          [Timer]
+          # The empty entry clears the package's default schedule
+          OnCalendar=
+          OnCalendar=*-*-* {{ dnf_auto_time }}
+          RandomizedDelaySec={{ dnf_auto_random_delay }}min
+          Persistent={{ 'true' if dnf_auto_catch_up_enabled | bool else 'false' }}
+      notify: Restart the timer
+
     - name: Enable and start the timer
       ansible.builtin.systemd:
         name: "{{ dnf_auto_timer }}"
         enabled: true
         state: started
+        daemon_reload: true
 
     - name: Send a test message to Discord
       ansible.builtin.command:
         cmd: "{{ discord_notify_script }}"
         stdin: "Test message from Ansible: notifications are working."
       tags: [never, test]
+
+  handlers:
+    - name: Restart the timer
+      ansible.builtin.systemd:
+        name: "{{ dnf_auto_timer }}"
+        state: restarted
+        daemon_reload: true
