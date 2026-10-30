@@ -1,0 +1,8 @@
+---
+dnf_automatic_timer: dnf5-automatic.timer
+
+# Normalised booleans, so that answers like "y" or "yes" from vars_prompt work too
+__dnf_automatic_true: ["true", "yes", "y", "1", "on"]
+__dnf_automatic_notify_no_updates: "{{ dnf_automatic_notify_no_updates | string | lower in __dnf_automatic_true }}"
+__dnf_automatic_catch_up: "{{ dnf_automatic_catch_up | string | lower in __dnf_automatic_true }}"
+__dnf_automatic_send_test: "{{ dnf_automatic_send_test | string | lower in __dnf_automatic_true }}"

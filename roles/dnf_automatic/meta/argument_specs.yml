@@ -1,0 +1,50 @@
+---
+argument_specs:
+  main:
+    short_description: Automatic dnf updates on Fedora with Discord notifications
+    description:
+      - Sets up dnf5 automatic on Fedora 41 or newer and sends a report to a Discord webhook after every run.
+    options:
+      dnf_automatic_webhook_url:
+        type: str
+        required: true
+        no_log: true
+        description: Discord webhook URL the reports are sent to.
+      dnf_automatic_upgrade_type:
+        type: str
+        choices: [security, default]
+        default: security
+        description: Install only updates with a security advisory (security) or all updates (default).
+      dnf_automatic_reboot:
+        type: str
+        choices: [never, when-needed, when-changed]
+        default: never
+        description: When to reboot after updates.
+      dnf_automatic_notify_no_updates:
+        type: bool
+        default: false
+        description: Also send a message when there were no updates.
+      dnf_automatic_time:
+        type: str
+        default: "03:00"
+        description: Time of the daily run in HH:MM format.
+      dnf_automatic_random_delay:
+        type: int
+        default: 0
+        description: Random delay in minutes before each run (0 = none).
+      dnf_automatic_catch_up:
+        type: bool
+        default: false
+        description: Catch up on runs that were missed while the machine was off.
+      dnf_automatic_send_test:
+        type: bool
+        default: false
+        description: Send a test message to Discord at the end of the role.
+      dnf_automatic_script:
+        type: path
+        default: /usr/local/bin/dnf-discord-notify
+        description: Location of the notification script.
+      dnf_automatic_webhook_file:
+        type: path
+        default: /etc/dnf/discord-webhook
+        description: File the webhook URL is stored in (readable by root only).

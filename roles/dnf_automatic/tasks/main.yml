@@ -1,0 +1,89 @@
+---
+- name: Check prerequisites
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Fedora"
+      - ansible_facts['distribution_major_version'] | int >= 41
+      - "'/api/webhooks/' in dnf_automatic_webhook_url"
+      - "dnf_automatic_time is match('^([01]?[0-9]|2[0-3]):[0-5][0-9]$')"
+    fail_msg: >-
+      This role requires Fedora 41 or newer, a Discord webhook URL
+      and a time in HH:MM format.
+    quiet: true
+
+- name: Check whether the dnf5 Python bindings are installed
+  ansible.builtin.command: rpm -q python3-libdnf5  # noqa: command-instead-of-module
+  register: __dnf_automatic_libdnf5
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# The Ansible package module needs these bindings itself, so they are installed with dnf directly
+- name: Install python3-libdnf5
+  ansible.builtin.command: dnf install -y python3-libdnf5  # noqa: command-instead-of-module
+  when: __dnf_automatic_libdnf5.rc != 0
+  changed_when: true
+
+- name: Install packages
+  ansible.builtin.package:
+    name:
+      - dnf5-plugin-automatic
+      - jq
+      - curl
+    state: present
+
+- name: Store the webhook URL (readable by root only)
+  ansible.builtin.copy:
+    dest: "{{ dnf_automatic_webhook_file }}"
+    content: "{{ dnf_automatic_webhook_url }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install the Discord notification script
+  ansible.builtin.template:
+    src: dnf-discord-notify.sh.j2
+    dest: "{{ dnf_automatic_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure dnf automatic
+  ansible.builtin.template:
+    src: automatic.conf.j2
+    dest: /etc/dnf/automatic.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Create the drop-in directory for the timer
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ dnf_automatic_timer }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Set the timer's schedule and catch-up behaviour
+  ansible.builtin.template:
+    src: schedule.conf.j2
+    dest: "/etc/systemd/system/{{ dnf_automatic_timer }}.d/schedule.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dnf5-automatic timer
+
+- name: Enable and start the timer
+  ansible.builtin.systemd_service:
+    name: "{{ dnf_automatic_timer }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Send a test message to Discord
+  ansible.builtin.command:
+    cmd: "{{ dnf_automatic_script }}"
+    stdin: "Test message from Ansible: notifications are working."
+  when: __dnf_automatic_send_test | bool
+  changed_when: false

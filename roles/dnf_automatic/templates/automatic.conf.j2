@@ -1,0 +1,12 @@
+{{ ansible_managed | comment }}
+[commands]
+upgrade_type = {{ dnf_automatic_upgrade_type }}
+apply_updates = yes
+reboot = {{ dnf_automatic_reboot }}
+
+[emitters]
+emit_via = command
+emit_no_updates = {{ 'yes' if __dnf_automatic_notify_no_updates | bool else 'no' }}
+
+[command]
+command_format = {{ dnf_automatic_script }}

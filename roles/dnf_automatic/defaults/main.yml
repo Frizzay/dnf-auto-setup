@@ -1,0 +1,28 @@
+---
+# Discord webhook URL the reports are sent to (required, no default)
+# dnf_automatic_webhook_url: https://discord.com/api/webhooks/...
+
+# Which updates to install: security (only updates with a security advisory) or default (all)
+dnf_automatic_upgrade_type: security
+
+# When to reboot after updates: never, when-needed or when-changed
+dnf_automatic_reboot: never
+
+# Also send a message when there were no updates
+dnf_automatic_notify_no_updates: false
+
+# Time of the daily run (HH:MM)
+dnf_automatic_time: "03:00"
+
+# Random delay in minutes before each run (0 = none)
+dnf_automatic_random_delay: 0
+
+# Catch up on runs that were missed while the machine was off
+dnf_automatic_catch_up: false
+
+# Send a test message to Discord at the end of the role
+dnf_automatic_send_test: false
+
+# Locations of the notification script and the stored webhook URL
+dnf_automatic_script: /usr/local/bin/dnf-discord-notify
+dnf_automatic_webhook_file: /etc/dnf/discord-webhook

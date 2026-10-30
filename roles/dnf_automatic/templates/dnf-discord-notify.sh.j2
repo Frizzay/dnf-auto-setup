@@ -1,0 +1,14 @@
+#!/bin/bash
+{{ ansible_managed | comment }}
+# Sends the dnf automatic report (read from stdin) to Discord
+set -euo pipefail
+WEBHOOK_URL="$(cat {{ dnf_automatic_webhook_file | quote }})"
+BODY="$(cat)"
+# Discord allows at most 2000 characters per message, so truncate
+MSG="### 🛡️ {{ 'Security updates' if dnf_automatic_upgrade_type == 'security' else 'Updates' }} on $(hostname)
+-# $(date '+%Y-%m-%d %H:%M')
+\`\`\`
+${BODY:0:1800}
+\`\`\`"
+jq -n --arg content "$MSG" '{content: $content}' \
+  | curl -fsS -H "Content-Type: application/json" -d @- "$WEBHOOK_URL"

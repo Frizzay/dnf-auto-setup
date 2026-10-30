@@ -1,0 +1,47 @@
+---
+- name: Set up dnf automatic with Discord notifications
+  hosts: all
+  become: true
+
+  vars_prompt:
+    - name: dnf_automatic_webhook_url
+      prompt: "Discord webhook URL (input is hidden)"
+      private: true
+
+    - name: dnf_automatic_upgrade_type
+      prompt: "Which updates should be installed? (security/default)"
+      default: security
+      private: false
+
+    - name: dnf_automatic_reboot
+      prompt: "Reboot automatically? (never/when-needed/when-changed)"
+      default: never
+      private: false
+
+    - name: dnf_automatic_notify_no_updates
+      prompt: "Also notify when there were no updates? (y/n)"
+      default: "n"
+      private: false
+
+    - name: dnf_automatic_time
+      prompt: "Time of the daily run (HH:MM)"
+      default: "03:00"
+      private: false
+
+    - name: dnf_automatic_random_delay
+      prompt: "Random delay in minutes (0 = none)"
+      default: "0"
+      private: false
+
+    - name: dnf_automatic_catch_up
+      prompt: "Catch up on missed runs after boot? (y/n)"
+      default: "n"
+      private: false
+
+    - name: dnf_automatic_send_test
+      prompt: "Send a test message at the end? (y/n)"
+      default: "n"
+      private: false
+
+  roles:
+    - dnf_automatic

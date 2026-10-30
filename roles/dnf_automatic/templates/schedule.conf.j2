@@ -1,0 +1,7 @@
+{{ ansible_managed | comment }}
+[Timer]
+# The empty entry clears the package's default schedule
+OnCalendar=
+OnCalendar=*-*-* {{ dnf_automatic_time }}
+RandomizedDelaySec={{ dnf_automatic_random_delay | int }}min
+Persistent={{ 'true' if __dnf_automatic_catch_up | bool else 'false' }}
